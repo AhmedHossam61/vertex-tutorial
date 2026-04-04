@@ -47,7 +47,7 @@ async def main() -> None:
     print("Press Enter to record a turn (5 seconds), or type q then Enter to quit.")
 
     def parse_rate_from_mime(mime_type: str, fallback: int) -> int:
-        match = re.search(r"rate=(\\d+)", mime_type)
+        match = re.search(r"rate=(\d+)", mime_type)
         if not match:
             return fallback
         return int(match.group(1))
@@ -85,8 +85,8 @@ async def main() -> None:
 
                 await session.send_realtime_input(
                     audio=types.Blob(data=user_audio, mime_type=f"audio/pcm;rate={input_rate_hz}"),
-                    audio_stream_end=True,
                 )
+                await session.send_realtime_input(audio_stream_end=True)
 
                 model_audio = bytearray()
                 output_rate_hz = default_output_rate_hz

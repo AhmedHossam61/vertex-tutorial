@@ -1,34 +1,31 @@
 # vertex-tutorial
 
-Simple Vertex AI text-generation test project using Gemini models.
+Vertex AI quickstart project for:
 
-## What this project does
+1. Basic Gemini text generation
+2. Gemini Live native-audio voice interaction (microphone input, speaker output)
 
-This repo shows the smallest useful setup for calling a Gemini model on Vertex AI from Python.
+## Project files
 
-The sample in [main.py](main.py) does one thing:
-
-1. Reads local config from [.env](.env)
-2. Uses Application Default Credentials from `gcloud`
-3. Sends a text prompt to a Gemini model on Vertex AI
-4. Prints the response
+1. [main.py](main.py): simple text request to `gemini-2.5-flash`
+2. [live_audio.py](live_audio.py): interactive voice agent using `gemini-live-2.5-flash-native-audio`
+3. [streaming.py](streaming.py): text streaming example
+4. [list_models.py](list_models.py): list available models in your project/region
 
 ## Prerequisites
 
-You need:
+1. Google Cloud project with billing enabled
+2. Vertex AI API enabled
+3. `gcloud` installed
+4. Python virtual environment (`.venv`)
 
-1. A Google Cloud project with Vertex AI enabled
-2. Billing enabled for that project
-3. `gcloud` installed locally
-4. Python dependencies installed in your virtual environment
+## Cloud setup (one time)
 
-## One-time setup
-
-### 1. Enable Vertex AI
+### 1. Enable Vertex AI API
 
 In Google Cloud Console, enable the Vertex AI API for your project.
 
-### 2. Sign in for local development
+### 2. Authenticate locally with ADC
 
 Run:
 
@@ -36,117 +33,137 @@ Run:
 gcloud auth application-default login
 ```
 
-This creates your local Application Default Credentials file, which Python uses when calling Vertex AI.
+Important:
 
-### 3. Configure the project locally
+1. Complete browser sign-in fully and accept prompts.
+2. This creates local ADC credentials used by the Python SDK.
 
-Keep local config in [.env](.env). A minimal setup looks like this:
+## Local setup
+
+### 1. Configure environment in [.env](.env)
 
 ```env
 GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=global
+GOOGLE_CLOUD_LOCATION=europe-west4
 GOOGLE_GENAI_USE_VERTEXAI=true
 ```
 
 Notes:
 
-1. `GOOGLE_CLOUD_PROJECT` is your Google Cloud project ID, not the project name.
-2. `GOOGLE_CLOUD_LOCATION` can be `global` for a simple smoke test, or a region such as `us-central1`.
-3. `GOOGLE_GENAI_USE_VERTEXAI` is a flag for Vertex usage. The current sample also sets Vertex mode directly in code.
+1. Use your real project ID (not project display name).
+2. `europe-west4` is a good default for users in Egypt (lower latency than many US regions).
+3. `us-west1` does not expose Gemini models in this project setup.
 
-## Run the sample
-
-After the environment is configured, run:
+### 2. Install dependencies
 
 ```powershell
-python .\main.py
+uv pip install google-genai numpy sounddevice
 ```
 
-If everything is correct, the script should print a short Gemini response.
+`numpy` and `sounddevice` are required for microphone capture and audio playback in [live_audio.py](live_audio.py).
 
-## Where to get the model ID
+## Verify setup in order
 
-The model ID is the exact string passed to `model=` in `generate_content`.
+### 1. Check available models
 
-You can get it from these places:
-
-1. Vertex AI Model Garden in the Google Cloud Console
-2. The Vertex AI Gemini documentation for supported model names
-3. The Vertex AI API by listing available models
-
-Example model IDs you may see are:
-
-```text
-gemini-2.5-flash
-gemini-2.5-pro
-gemini-2.0-flash
+```powershell
+.venv\Scripts\python list_models.py
 ```
 
-The exact model ID depends on what is available in your project and region.
+Look for:
 
-### List available models from Python
+1. `publishers/google/models/gemini-2.5-flash`
+2. `publishers/google/models/gemini-live-2.5-flash-native-audio`
 
-If you want to discover model IDs programmatically, you can use:
+### 2. Run basic text test
 
-```python
-from google import genai
-
-client = genai.Client(vertexai=True, project="your-project-id", location="global")
-
-for model in client.models.list():
-	print(model.name)
+```powershell
+.venv\Scripts\python main.py
 ```
+
+If this works, Vertex auth and project config are correct.
+
+### 3. Run Gemini Live voice test
+
+```powershell
+.venv\Scripts\python live_audio.py
+```
+
+Flow:
+
+1. Press Enter to record one voice turn (5 seconds)
+2. Speak while recording
+3. Script sends your audio to Gemini Live
+4. Model returns audio chunks
+5. Script plays model voice reply
+6. Type `q` then Enter to exit
+
+## How Gemini Live is implemented here
+
+The working implementation in [live_audio.py](live_audio.py) uses:
+
+1. `client.aio.live.connect(...)` (async Live API path)
+2. Model: `gemini-live-2.5-flash-native-audio`
+3. `response_modalities=[AUDIO]` (required for native-audio model)
+4. `send_realtime_input(audio=...)` then `send_realtime_input(audio_stream_end=True)` as two separate calls
+
+The two-call pattern is required because Live API enforces one-of input fields per message.
+
+## Where to get model IDs
+
+Use any of these:
+
+1. Vertex AI Model Garden in Google Cloud Console
+2. Vertex AI Gemini model docs
+3. Programmatically via [list_models.py](list_models.py)
+
+Common IDs in this project:
+
+1. `gemini-2.5-flash`
+2. `gemini-2.5-pro`
+3. `gemini-live-2.5-flash-native-audio`
 
 ## Troubleshooting
 
-If you see `DefaultCredentialsError`, it usually means one of these:
+### `DefaultCredentialsError: Your default credentials were not found`
 
-1. You did not run `gcloud auth application-default login`
-2. You signed in with a different Windows user profile
-3. The ADC file was not created successfully
+1. Run `gcloud auth application-default login` again
+2. Complete browser consent flow fully
+3. Ensure you run script under same Windows user profile used for gcloud login
 
-If you see a model or region error, check that:
+### `Only one argument can be set, got 2: ['audio', 'audio_stream_end']`
 
-1. The model exists in your selected location
-2. The project has Vertex AI enabled
-3. Your account has permission to use Vertex AI
+Fix:
 
-## Live API with native audio
+1. Send audio and stream-end in separate calls
+2. Current [live_audio.py](live_audio.py) already does this correctly
 
-Vertex AI offers a Live API for real-time bidirectional streaming conversations with audio support.
+### `Text output is not supported for native audio output model`
 
-### Status in this project
+Fix:
 
-The `gemini-live-2.5-flash-native-audio` model is available in your project, but the current `google-genai` library (v1.70.0) has limited support for the Live API:
+1. Use `response_modalities=[AUDIO]` for `gemini-live-2.5-flash-native-audio`
+2. Current [live_audio.py](live_audio.py) already does this
 
-- The `interactions` API (experimental) doesn't support live  models yet
-- The Live API may require direct REST API calls or additional setup
+### `Unsupported model` or model not found
 
-**Workaround**: Use the standard `generate_content()` for text (see [main.py](main.py)), which works reliably.
+1. Switch to a supported region like `europe-west4` or `us-central1`
+2. Re-run [list_models.py](list_models.py) to confirm availability
 
-### Alternative: Streaming with standard models
+### No sound from speaker
 
-To get real-time-like behavior with standard models, you can use streaming with `generate_content`:
+1. Check default output device in OS audio settings
+2. Ensure speaker/headphones are selected and volume is up
+3. Confirm `sounddevice` can access audio device
 
-```python
-response = client.models.generate_content_stream(
-    model="gemini-2.5-flash",
-    contents="Your prompt here",
-)
+### Microphone not recording
 
-for chunk in response:
-    print(chunk.text, end="")
+1. Allow microphone permissions for terminal/Python on Windows
+2. Check default input device in OS settings
+3. Test microphone with another app first
 
+## Next improvements (optional)
 
-```
-
-For full async streaming support, Vertex AI also offers the `aio` (async) client.
-
-For production use of the Live API, see the [Vertex AI Live Streaming documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/live-streaming).
-
-## Current examples
-
-1. **Text generation** (basic): [main.py](main.py) — Simple one-shot text prompt
-2. **Model discovery**: [list_models.py](list_models.py) — Lists all available models in your project
-
-To switch models, edit the `model=` value in any script.
+1. Replace fixed 5-second turns with continuous streaming microphone mode
+2. Save returned PCM audio to WAV files for debugging
+3. Add push-to-talk key handling instead of Enter prompt
