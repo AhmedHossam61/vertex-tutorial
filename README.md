@@ -111,8 +111,42 @@ If you see a model or region error, check that:
 2. The project has Vertex AI enabled
 3. Your account has permission to use Vertex AI
 
-## Current example
+## Live API with native audio
 
-The current sample uses `gemini-2.5-flash` for a basic text-generation test.
+Vertex AI offers a Live API for real-time bidirectional streaming conversations with audio support.
 
-If you want to change the test model, edit the `model=` value in [main.py](main.py).
+### Status in this project
+
+The `gemini-live-2.5-flash-native-audio` model is available in your project, but the current `google-genai` library (v1.70.0) has limited support for the Live API:
+
+- The `interactions` API (experimental) doesn't support live  models yet
+- The Live API may require direct REST API calls or additional setup
+
+**Workaround**: Use the standard `generate_content()` for text (see [main.py](main.py)), which works reliably.
+
+### Alternative: Streaming with standard models
+
+To get real-time-like behavior with standard models, you can use streaming with `generate_content`:
+
+```python
+response = client.models.generate_content_stream(
+    model="gemini-2.5-flash",
+    contents="Your prompt here",
+)
+
+for chunk in response:
+    print(chunk.text, end="")
+
+
+```
+
+For full async streaming support, Vertex AI also offers the `aio` (async) client.
+
+For production use of the Live API, see the [Vertex AI Live Streaming documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/live-streaming).
+
+## Current examples
+
+1. **Text generation** (basic): [main.py](main.py) — Simple one-shot text prompt
+2. **Model discovery**: [list_models.py](list_models.py) — Lists all available models in your project
+
+To switch models, edit the `model=` value in any script.
