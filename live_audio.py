@@ -5,6 +5,7 @@ import re
 
 from google import genai
 from google.genai import types
+from langsmith import wrappers
 import numpy as np
 import sounddevice as sd
 
@@ -33,11 +34,13 @@ async def main() -> None:
     location = os.environ.get("GOOGLE_CLOUD_LOCATION", "europe-west4")
     model_id = "gemini-live-2.5-flash-native-audio"
 
-    client = genai.Client(
+    genai_client = genai.Client(
         vertexai=True,
         project=project_id,
         location=location,
     )
+    # Wrap the client for LangSmith tracing
+    client = wrappers.wrap_gemini(genai_client)
 
     input_rate_hz = 16000
     default_output_rate_hz = 24000
