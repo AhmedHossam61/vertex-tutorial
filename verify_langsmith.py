@@ -29,7 +29,7 @@ def verify():
         # This call will be traced
         print("Sending test greeting to Gemini...")
         response = wrapped_client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             contents="Say 'LangSmith is active!'"
         )
         print(f"Model response: {response.text}")
